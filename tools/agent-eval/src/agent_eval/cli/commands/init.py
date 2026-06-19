@@ -639,6 +639,8 @@ _SKIP_DIRS = {
     "sub_agents",
     "app_env",
     "eval_history",
+    "tmp_clone",
+    "test_init_tmp",
 }
 
 INTERACTION_MODES = [
@@ -682,7 +684,6 @@ STARTER_METRICS = [
     ),
     ("safety", "Safety", "Safety compliance check (Vertex AI built-in)", False),
 ]
-
 
 
 def _find_agents(search_dir: Path) -> list[tuple[str, Path]]:

@@ -141,6 +141,20 @@ def _build_evaluation_run_metrics(
     return run_metrics
 
 
+def _has_agent_specific_metrics(run_metrics: List[Any]) -> bool:
+    """Check if there are any agent-specific metrics in the run (like tool use)
+
+    that require agent_info linkage (and thus force agent parameter, which crashes backend tracing).
+    """
+    for m in run_metrics:
+        metric_name = getattr(m, "metric", "") or ""
+        if any(
+            keyword in str(metric_name).upper() for keyword in ("TOOL_USE", "TOOL_CALL")
+        ):
+            return True
+    return False
+
+
 def _agent_info_fidelity_label(agent_info: Any, local_agent: Any) -> str:
     """Human-readable label naming which fidelity layer was used for AgentInfo.
 
@@ -585,6 +599,23 @@ def _build_agent_info(
         common["tool_declarations"] = []
     if "root_agent_id" in fields:
         common["root_agent_id"] = name
+    if "agents" in fields:
+        AgentConfig = vt_evals.AgentConfig
+        config_fields = set(AgentConfig.model_fields.keys())
+        config_dict = {}
+        if "instruction" in config_fields:
+            config_dict["instruction"] = (
+                (getattr(agent, "instruction", None) or "") if agent is not None else ""
+            )
+        if "description" in config_fields:
+            config_dict["description"] = (
+                (getattr(agent, "description", None) or "") if agent is not None else ""
+            )
+        if "agent_id" in config_fields:
+            config_dict["agent_id"] = name
+        if "tool_declarations" in config_fields:
+            config_dict["tool_declarations"] = []
+        common["agents"] = {name: AgentConfig(**config_dict)}
 
     try:
         info = AgentInfo(**common)
@@ -822,6 +853,10 @@ def agent_engine(
 
     _display_banner()
 
+    # Disable client certificates (mTLS) to prevent google-auth/urllib3 from
+    # monkey-patching with pyopenssl, which causes connection crashes on Python 3.13.
+    os.environ.setdefault("GOOGLE_API_USE_CLIENT_CERTIFICATE", "false")
+
     if not debug:
         import logging
 
@@ -1040,12 +1075,23 @@ def agent_engine(
     console.print()
     console.rule("[dim]Submission[/]", style="grey50", align="left")
 
+    has_agent_metrics = _has_agent_specific_metrics(run_metrics)
+
     create_kwargs: Dict[str, Any] = {
         "dataset": inference_df,
         "metrics": run_metrics,
         "dest": destination,
     }
-    if agent_info is not None:
+
+    if has_agent_metrics:
+        console.print(
+            "  [yellow]![/] Run contains agent-specific metric(s) (e.g. tool use).\n"
+            "      The Vertex server-side tracer currently has limitations parsing ADK traces on the backend.\n"
+            "      If the run fails with an INTERNAL error, consider using 'agent-eval evaluate' for local trace grading.\n"
+            "      Proceeding with engine linkage..."
+        )
+
+    if agent_info is not None and has_agent_metrics:
         create_kwargs["agent_info"] = agent_info
         # Newer SDK (>= 1.143) requires a separate ``agent`` kwarg to link
         # the run back to the deployed Reasoning Engine. Older releases

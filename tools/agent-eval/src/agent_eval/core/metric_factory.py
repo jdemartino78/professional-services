@@ -341,6 +341,11 @@ def to_evaluation_run_metric(metric: Any):
                 ),
             ),
         )
+    # Prebuilt computation metrics (bare Metric with name and no functions)
+    if isinstance(metric, vt.Metric) and not getattr(
+            metric, "custom_function", None) and not getattr(
+            metric, "remote_custom_function", None):
+        return vt.EvaluationRunMetric(metric=metric.name)
 
     # Bare Metric with custom_function: in-process only; not supported by
     # the streamlined `agent-engine` runner. Caller must convert it to
