@@ -16,6 +16,9 @@ import contextlib
 import json
 import logging
 import math
+import threading
+
+_vertex_init_lock = threading.Lock()
 import statistics
 import subprocess
 import sys
@@ -109,9 +112,14 @@ def _last_user_text(df: pd.DataFrame) -> pd.Series:
         # string (CSV from older runs). Decode strings, accept lists.
         if isinstance(ui, str):
             try:
+                import json
                 ui = json.loads(ui)
             except (json.JSONDecodeError, ValueError):
-                ui = [ui]
+                try:
+                    import ast
+                    ui = ast.literal_eval(ui)
+                except (SyntaxError, ValueError):
+                    ui = [ui]
         if isinstance(ui, list) and ui:
             return str(ui[-1])
         # Fallbacks for rows that didn't capture user_inputs.
@@ -497,11 +505,22 @@ def run_single_metric_evaluation(
         metric_obj,
         metric_df,
         metric_name,
-        client,
+        _unused_client,
         retries,
         delay,
         gcs_dest,
     ) = task_args
+
+    # Thread-safe client instantiation: 
+    # httpx connections cannot be safely reused across to_thread boundaries
+    from vertexai import Client
+    from google.genai.types import HttpOptions
+    with _vertex_init_lock:
+        client = Client(
+            project=get_project_id(),
+            location=CONFIG.GOOGLE_CLOUD_LOCATION,
+            http_options=HttpOptions(api_version="v1beta1"),
+        )
 
     eval_kwargs: dict[str, Any] = {}
     if gcs_dest:

@@ -309,10 +309,10 @@ def map_dataset_columns(
             inputs = agent_df["user_inputs"]
             # Normalize multi-turn lists into a single context string.
             eval_dataset["prompt"] = inputs.apply(
-                lambda x: "\n".join(x)
-                if isinstance(x, list)
+                lambda x: str(x[-1])
+                if isinstance(x, list) and len(x) > 0
                 else str(x)
-                if x is not None
+                if x is not None and not isinstance(x, list)
                 else ""
             )
         else:
