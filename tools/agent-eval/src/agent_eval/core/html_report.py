@@ -511,11 +511,12 @@ def _build_csv_lookup(results_csv: Path | None) -> dict[str, dict[str, Any]]:
                 def _sum_by_type(node: Any, target_type: str) -> float:
                     if not isinstance(node, dict):
                         return 0.0
-                    s = 0.0
                     if node.get("type") == target_type:
                         d = node.get("duration_seconds")
                         if isinstance(d, (int, float)):
-                            s += float(d)
+                            return float(d)
+                        return 0.0
+                    s = 0.0
                     for child in node.get("children") or []:
                         s += _sum_by_type(child, target_type)
                     return s
