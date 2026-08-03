@@ -285,7 +285,7 @@ def evaluate(
             metrics_files = list(metrics_files or []) + [str(tmp_metrics)]
 
     if not interaction_file:
-        for candidate in ("tests/eval/dataset.jsonl", "digital-twin-agent/tests/eval/dataset.jsonl"):
+        for candidate in ("tests/eval/dataset.jsonl",):
             if Path(candidate).exists():
                 interaction_file = (candidate,)
                 break
@@ -293,10 +293,7 @@ def evaluate(
             interaction_file = ("tests/eval/dataset.jsonl",)
 
     if not metrics_files:
-        for candidate in (
-            "tests/eval/metrics/metric_definitions.json",
-            "digital-twin-agent/tests/eval/metrics/metric_definitions.json",
-        ):
+        for candidate in ("tests/eval/metrics/metric_definitions.json",):
             if Path(candidate).exists():
                 metrics_files = (candidate,)
                 break

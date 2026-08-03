@@ -41,9 +41,7 @@ class MetricSelectionStage(BaseStage):
             # Fallback to local discovery
             for candidate in (
                 Path("app/eval_config.yaml"),
-                Path("digital-twin-agent/app/eval_config.yaml"),
                 Path("tests/eval/eval_config.yaml"),
-                Path("digital-twin-agent/tests/eval/eval_config.yaml"),
             ):
                 if candidate.exists():
                     try:
@@ -57,7 +55,6 @@ class MetricSelectionStage(BaseStage):
             if not metrics_dict:
                 for candidate_json in (
                     Path("tests/eval/metrics/metric_definitions.json"),
-                    Path("digital-twin-agent/tests/eval/metrics/metric_definitions.json"),
                 ):
                     if candidate_json.exists():
                         try:

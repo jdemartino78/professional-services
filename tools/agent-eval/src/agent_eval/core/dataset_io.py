@@ -108,7 +108,7 @@ def ensure_agentdata_projection(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def parse_markdown_dataset(path: Path | str) -> list[dict[str, Any]]:
-    """Parse an evaluation markdown file (like doc/NA_corn_eval_set.md) into AgentData rows."""
+    """Parse an evaluation markdown file (like doc/example_eval_set.md) into AgentData rows."""
     p = Path(path)
     if not p.exists():
         return []

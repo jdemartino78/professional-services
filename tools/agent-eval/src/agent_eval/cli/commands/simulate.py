@@ -749,9 +749,7 @@ def simulate(agent_dir, eval_dir, run_id, debug, in_process, dataset):
     configure_logging(debug=debug)
 
     if not agent_dir:
-        if Path("digital-twin-agent/app/agent.py").exists():
-            agent_dir = "digital-twin-agent"
-        elif Path("app/agent.py").exists():
+        if Path("app/agent.py").exists():
             agent_dir = "."
         else:
             agent_dir = "."
