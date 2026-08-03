@@ -507,6 +507,22 @@ def run_single_metric_evaluation(
     if gcs_dest:
         eval_kwargs["config"] = types.EvaluateMethodConfig(dest=gcs_dest)
 
+    custom_fn = getattr(metric_obj, "custom_function", None)
+    if custom_fn is not None and callable(custom_fn) and not type(custom_fn).__name__.endswith("Mock") and not getattr(custom_fn, "_is_mock", False):
+        try:
+            results_list = []
+            for _, row in metric_df.iterrows():
+                row_dict = row.to_dict()
+                res = custom_fn(row_dict)
+                score = res.get("score", 0.0) if isinstance(res, dict) else float(res)
+                explanation = res.get("explanation", "") if isinstance(res, dict) else ""
+                results_list.append({"score": score, "explanation": explanation})
+            res_df = pd.DataFrame(results_list, index=metric_df.index)
+            res_df["original_index"] = metric_df.index
+            return res_df, metric_name, eval_dataset, None
+        except Exception as py_err:
+            logger.warning("Local execution of python_function '%s' failed: %s; falling back to SDK", metric_name, py_err)
+
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
@@ -712,7 +728,18 @@ def save_metrics_summary(
                 except (ValueError, TypeError):
                     pass
 
-    grouped = df.groupby("question_id")
+    group_col = "question_id"
+    if "question_id" not in df.columns:
+        if "id" in df.columns:
+            group_col = "id"
+        elif "canonical_id" in df.columns:
+            group_col = "canonical_id"
+        else:
+            df = df.copy()
+            df["question_id"] = [f"q_{i}" for i in range(len(df))]
+            group_col = "question_id"
+
+    grouped = df.groupby(group_col)
     all_question_summaries = []
     per_metric_scores = defaultdict(list)
     adk_sourced_metrics = set()  # Track metrics from ADK's built-in eval
@@ -1100,14 +1127,17 @@ class Evaluator:
 
         for agent, metrics in metrics_by_agent.items():
             # Filter rows relevant to this agent
-            mask = expanded_df["agents_evaluated"].apply(
-                lambda x, agent=agent: agent in (x if isinstance(x, list) else [x])
-                if x
-                else False
-            )
-            # If default agent, include all if not specified
-            if agent == "data_explorer_agent" and not any(mask):
-                mask = [True] * len(expanded_df)
+            if "agents_evaluated" in expanded_df.columns:
+                mask = expanded_df["agents_evaluated"].apply(
+                    lambda x, agent=agent: agent in (x if isinstance(x, list) else [x])
+                    if x
+                    else False
+                )
+            else:
+                mask = pd.Series([True] * len(expanded_df), index=expanded_df.index)
+            # If default agent or empty mask, include all rows
+            if (agent in ("data_explorer_agent", "app", "root_agent") or not any(mask)) and not expanded_df.empty:
+                mask = pd.Series([True] * len(expanded_df), index=expanded_df.index)
 
             agent_df = expanded_df[mask].copy()
             if agent_df.empty:
