@@ -2172,6 +2172,7 @@ _HTML_TEMPLATE = r"""<!doctype html>
       ['Cached tokens', det['token_usage.cached_tokens'], 'n'],
       ['Cost', det['token_usage.estimated_cost_usd'], 'cost'],
       ['Wall-clock', det['latency_metrics.total_latency_seconds'], 's'],
+      ['Turn latency', det['latency_metrics.average_turn_latency_seconds'], 's'],
       ['LLM time', det['latency_metrics.llm_latency_seconds'], 's'],
       ['Tool time', det['latency_metrics.tool_latency_seconds'], 's'],
       ['LLM calls', det['token_usage.llm_calls'], 'n'],
